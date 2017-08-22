@@ -3,12 +3,12 @@ extends layout
 block page
   - var menu = 'index'
 block content
-  if (articles === 0)
+  if (articles.length === 0)
     | There is no published content yet.
     a(href="/login") Log in
     | to post and publish.
   else
-    each rticle, index in articles
+    each aritcle, index in articles
       div
         h2
-          a(href="/articles/#{aritcle.slug}")= article.title
+          a(href="/articles/#{aritcle.slug}")= aritcle.title

@@ -1,9 +1,46 @@
-var express = require('express');
-var router = express.Router();
+// Get users listing
+exports.list = function (req, res) {
+    res.send('response a resource');
+};
 
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
-});
+// Get login page
+exports.login = function (req, res) {
+    res.render('login');
+};
 
-module.exports = router;
+// Get logout route
+exports.logout = function (req, res, next) {
+    // Destroy Session
+    req.session.destroy();
+    res.redirect('/');
+};
+
+// Post authenticate route
+exports.authenticate = function (req, res, next) {
+    // Check Empty
+    if (!req.body.email || !req.body.password) {
+        return res.render('login', {
+            error: 'Please enter your email and password.'
+        });
+    }
+    // Check in database
+    req.collections.users.findOne({
+        email: req.body.email,
+        password: req.body.password
+    }, function (error, user) {
+        if (error) {
+            return next(error);
+        }
+        if (!user) {
+            return res.render('login', {
+                error: 'Incorrect email&password combination.'
+            });
+        }
+        // Setting session
+        req.session.user = user;
+        req.session.admin = user.admin;
+        return res.redirect('/admin');
+    });
+
+};
+
