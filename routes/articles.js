@@ -7,12 +7,12 @@ exports.show = function (req, res, next) {
     if (!req.param.slug) {
         return next(new Error('No aritcle slug.'));
     }
-    req.collections.articles.findOne({slug: req.param.slug}, function (err, article) {
+    req.models.Article.findOne({slug: req.param.slug}, function (err, article) {
         if (err) {
             return next(err);
         }
 
-        if (!article.published) {
+        if (!article.published && !req.session.admin) {
             return res.send(401);
         }
 
@@ -22,7 +22,7 @@ exports.show = function (req, res, next) {
 
 // Get articles API
 exports.list = function (req, res, next) {
-    req.collections.articles.find({}).toArray(function (err, articles) {
+    req.models.Article.list(function (err, articles) {
         if (err) {
             return next(err);
         }
@@ -38,7 +38,7 @@ exports.add = function (req, res, next) {
     }
     var article = req.body.article;
     article.published = false;
-    req.collections.articles.insert(article, function (err, articleResponse) {
+    req.models.Article.create(article, function (err, articleResponse) {
         if (err) {
             return next(err);
         }
@@ -51,25 +51,26 @@ exports.edit = function (req, res, next) {
     if (!req.param.id) {
         return next(new Error('No article id.'));
     }
-    req.collections.articles.updateMany({_id: require('mongodb').ObjectID(req.param.id)}, {$set: req.body.article}, function (err, count) {
-        if (err) {
-            return next(err);
-        }
 
-        res.send({affectCount: count});
+    req.models.Article.findById(req.params.id, function(error, article) {
+        if (error) return next(error);
+        article.update({$set: req.body.article}, function(error, count, raw){
+            if (error) return next(error);
+            res.send({affectedCount: count});
+        })
     });
 };
 
 // DELETE article API
 exports.del = function (req, res, next) {
-    if (!req.param.id) {
-        return next(new Error('No article id.'));
-    }
-    req.collections.articles.deleteMany({_id: require('mongodb').ObjectID(req.param.id)}, function (err, count) {
-        if (err) {
-            return next(err);
-        }
-        res.send({affectCount: count});
+    if (!req.params.id) return next(new Error('No article ID.'));
+    req.models.Article.findById(req.params.id, function(error, article) {
+        if (error) return next(error);
+        if (!article) return next(new Error('article not found'));
+        article.remove(function(error, doc){
+            if (error) return next(error);
+            res.send(doc);
+        });
     });
 };
 
@@ -82,7 +83,7 @@ exports.post = function (req, res, next) {
 
 // POST artucle POST page
 exports.postArticle = function (req, res, next) {
-    if (!req.body.title || !req.body.slug || !req.body.text) {
+    if (!req.body.title || !req.body.slug || !req.body.text ) {
         return res.render('post', {error: 'Fill title, slug and text.'});
     }
     var article = {
@@ -91,23 +92,17 @@ exports.postArticle = function (req, res, next) {
         text: req.body.text,
         published: false
     };
-
-    req.collections.articles.insert(article, function (err, articleResponse) {
-        if (err) {
-            return next(err);
-        }
-        res.render('post', {error: 'Article was added, publish is on Admin page.'});
+    req.models.Article.create(article, function(error, articleResponse) {
+        if (error) return next(error);
+        res.render('post', {error: 'Article was added. Publish it on Admin page.'});
     });
 };
 
 // Get admin page
 exports.admin = function (req, res, next) {
-    req.collections.articles.find({}, {sort: {_id: -1}}).toArray(function (error, articles) {
-        if (error) {
-            return next(error);
-        }
-
-        res.render('admin', {articles: articles});
-    })
+    req.models.Article.list(function(error, articles) {
+        if (error) return next(error);
+        res.render('admin',{articles:articles});
+    });
 };
 

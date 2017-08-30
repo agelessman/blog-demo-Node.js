@@ -3,19 +3,11 @@ var path = require('path');
 var favicon = require('serve-favicon');
 var http = require("http");
 var routes = require('./routes');
+var mongoose = require('mongoose');
+var models = require('./models');
+var dbURL = process.env.MONGOHQ_URL || 'mongodb://localhost:27017/blog';
+var db = mongoose.connect(dbURL, {safe: true});
 
-// var index = require('./routes/index');
-// var users = require('./routes/users');
-
-/// Collections
-var collections;
-var MongoClient = require('mongodb').MongoClient;
-MongoClient.connect('mongodb://localhost:27017/blog', function (err, db) {
-    collections = {
-        articles: db.collection('articles'),
-        users: db.collection('users')
-    };
-});
 
 var session = require('express-session'),
     logger = require('morgan'),
@@ -29,15 +21,12 @@ var app = express();
 app.locals.appTitle = "blog-express";
 
 app.use(function(req, res, next) {
-    if (!collections.articles || !collections.users) {
-        var err = new Error('No collections.');
+    if (!models.Article || !models.User) {
+        var err = new Error('No Models.');
         err.status = 404;
         return next(err)
     }
-    req.collections = collections;
-    collections.users.find({}).toArray(function (err, users) {
-        console.log(users);
-    });
+    req.models = models;
 
     next();
 });
